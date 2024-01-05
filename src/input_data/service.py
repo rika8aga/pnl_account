@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from models import PaymentDirection
 from datetime import datetime, date
-from schemas import PaymentType, PaymentTypeDto, PaymentDto, PaymentDirectionDto
+from schemas import PaymentType, PaymentTypeDto, PaymentDto, PaymentDirectionDto, CompanyDto
 import streamlit as st
 
 
@@ -49,13 +49,17 @@ class PaymentProcessor:
         'cost': 'Себестоимость'
     }
 
-    # TYPE_MAPPING = {
-    #     'Товар': 'product',
-    #     'Услуга': 'service',
-    #     'Общие': 'general',
-    # }
-
-    MONTH_MAPPING = ('янв.', 'февр.', 'март', 'апр.', 'май', 'июнь', 'июль', 'авг.', 'сент.')
+    MONTH_MAPPING = {
+        'янв.': 1,
+        'февр.': 2,
+        'март': 3,
+        'апр.': 4,
+        'май': 5,
+        'июнь': 6,
+        'июль': 7,
+        'авг.': 8,
+        'сент.': 9,
+    }
 
     def _read_excel(self, file: UploadedFile | None) -> pd.DataFrame:
         file_reader = (self.FILE_HANDLER.get(type(file), NoneFileReader()))
@@ -81,7 +85,7 @@ class PaymentProcessor:
             match date_string:
                 case str(value):
                     month_name, year = value.split(' ')
-                    month_number = PaymentProcessor.MONTH_MAPPING.index(month_name) + 1
+                    month_number = PaymentProcessor.MONTH_MAPPING.get(month_name)
                     return datetime.strptime(f'{month_number}.{year}', '%m.%y')
                 case pd.Timestamp():
                     return date_string
@@ -101,14 +105,14 @@ class PaymentProcessor:
                     var_name='period',
                     value_name='value'
                 ).rename(columns={'Вид': 'name'})
-                data['direction'] = direction.value
+                data['direction'] = direction
                 self.melted_df = pd.concat([self.melted_df, data], axis=0, ignore_index=True).fillna(0)
         else:
             self.melted_df = pd.DataFrame([{
                 "name": "",
                 "period": pd.Timestamp(date.today()),
                 "value": 0,
-                "direction": "",
+                "direction": PaymentDirection.income,
             }])
         self._set_date_format()
         return f'{len(self.melted_df)}'
@@ -116,35 +120,21 @@ class PaymentProcessor:
     def _get_payments(self) -> list[PaymentDirectionDto]:
         self._get_melted_df()
         # st.dataframe(self.melted_df)
-        payments_dict = self.melted_df.to_dict('records')
-        payments_dto = [PaymentDirectionDto(**payment) for payment in payments_dict]
-        # st.write(payments_dto)
+        payments_dto = [PaymentDirectionDto(**payment) for payment in self.melted_df.to_dict('records')]
         return payments_dto
 
     @property
     def payments(self):
         return self._get_payments()
 
-    @staticmethod
-    def _payment_type_handler(data: list[dict[str, str]]) -> pd.DataFrame:
-        try:
-            validated_data = [PaymentTypeDto(**item) for item in data]
-            df = pd.DataFrame([item.model_dump() for item in validated_data])
-            df['payment_type'] = df['payment_type'].apply(lambda x: PaymentProcessor.TYPE_MAPPING.get(x))
-            return df
-        except ValidationError as e:
-            print(f"Validation error: {e.errors()}")
-            st.warning(e.errors()[0]['msg'])
-            st.stop()
+    def _add_company(self, company: CompanyDto):
+        self.melted_df["company"] = company
 
-    def _add_company_id(self, company_id: int):
-        self.melted_df['company_id'] = company_id
-
-    def add_data_to_payments(self, data: list[dict[str, str]], company_id: int) -> None:
-        payments_type = self._payment_type_handler(data)
-        self._add_company_id(company_id)
+    def add_type_to_payments(self, payment_types: list[PaymentTypeDto], company: CompanyDto) -> None:
+        payments_type = pd.DataFrame([item.model_dump() for item in payment_types])
+        st.write(payments_type)
+        # self._add_company(company)
         self.melted_df = self.melted_df.merge(payments_type, on=['name', 'direction'], how='left')
-        self.melted_df.dropna(subset=['payment_type'], inplace=True)
 
     @property
     def payments_to_db(self):
