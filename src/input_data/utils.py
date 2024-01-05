@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 from models import PaymentType
 from .query import DatabaseManager
@@ -19,19 +20,18 @@ class FileUploader:
 
 
 class CompanySelector:
-    def __init__(self):
-        self.company = None
-
-    async def select_company(self):
+    @staticmethod
+    async def select_company() -> CompanyDto:
         companies = await DatabaseManager.get_company_names()
         with st.container(border=True):
             st.subheader('Наименование компании')
-            self.company: CompanyDto = st.selectbox(
+            company: CompanyDto = st.selectbox(
                 label='company_name',
                 label_visibility='collapsed',
                 options=companies,
                 format_func=lambda x: x.name
             )
+        return company
 
 
 class PaymentTypeSelector:
@@ -54,18 +54,14 @@ class PaymentTypeSelector:
         'Общие': 'general',
     }
 
-    def _get_unique_payments(self) -> list[dict[str, str]]:
-        set_unique_payments = set(
-            (payment.name, payment.direction.value) for payment in self._payments_dto
+    def _get_unique_payments(self) -> pd.DataFrame:
+        unique_payments_type = pd.DataFrame([item.model_dump() for item in list(set(self._payments_dto))])
+        unique_payments_type['payment_type'] = None
+        unique_payments_type['direction'] = unique_payments_type['direction'].apply(
+            lambda x: PaymentTypeSelector.DIRECTION_MAPPING.get(x.value)
         )
-        dict_unique_payments = [
-            {
-                'name': i[0],
-                'direction': PaymentTypeSelector.DIRECTION_MAPPING.get(i[1]),
-                'payment_type': ''
-            } for i in set_unique_payments
-        ]
-        return dict_unique_payments
+        unique_payments_type = unique_payments_type.drop(columns=['value', 'period'])
+        return unique_payments_type
 
     def _data_editor(self) -> None:
         unique_payments = self._get_unique_payments()
@@ -85,19 +81,24 @@ class PaymentTypeSelector:
         )
 
     def _set_directions(self):
-        for i in self.payments_type:
-            i['direction'] = PaymentTypeSelector.DIRECTION_MAPPING.get(i['direction'])
+        self.payments_type['direction'] = self.payments_type['direction'].apply(
+            lambda x: PaymentTypeSelector.DIRECTION_MAPPING.get(x)
+        )
 
     def _set_type(self):
-        for i in self.payments_type:
-            i['payment_type'] = PaymentTypeSelector.TYPE_MAPPING.get(i['payment_type'])
+        self.payments_type['payment_type'] = self.payments_type['payment_type'].apply(
+            lambda x: PaymentTypeSelector.TYPE_MAPPING.get(x)
+        )
+
+    def _drop_none_payment_type(self):
+        self.payments_type.dropna(subset=['payment_type'], inplace=True)
 
     def _get_payment_type_dto(self) -> list[PaymentTypeDto]:
         self._data_editor()
         self._set_directions()
         self._set_type()
-        payments_type_dto = [PaymentTypeDto(**payment_type) for payment_type in self.payments_type]
-        st.write(payments_type_dto)
+        self._drop_none_payment_type()
+        payments_type_dto = [PaymentTypeDto(**payment_type) for payment_type in self.payments_type.to_dict('records')]
         return payments_type_dto
 
     @property

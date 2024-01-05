@@ -11,6 +11,15 @@ class PaymentDirectionDto(BaseModel):
     period: datetime
     value: decimal.Decimal
 
+    def __eq__(self, other):
+        if not isinstance(other, PaymentDirectionDto):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.name == other.name and self.direction == other.direction
+
+    def __hash__(self):
+        return hash((self.name, self.direction))
+
 
 class PaymentTypeDto(BaseModel):
     name: str
@@ -27,7 +36,6 @@ class PaymentTypeDto(BaseModel):
 
 class PaymentDto(PaymentTypeDto, PaymentDirectionDto):
     id: int
-
 
 
 class PaymentCompanyDto(PaymentDto):
