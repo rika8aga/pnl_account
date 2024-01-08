@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from models import PaymentDirection
 from datetime import datetime, date
-from schemas import PaymentType, PaymentTypeDto, PaymentDto, PaymentDirectionDto, CompanyDto
+from schemas import PaymentType, PaymentTypeDto, PaymentDto, PaymentDirectionDto, CompanyDto, PaymentCompanyDto
 import streamlit as st
 
 
@@ -127,15 +127,22 @@ class PaymentProcessor:
     def payments(self):
         return self._get_payments()
 
-    def _add_company(self, company: CompanyDto):
-        self.melted_df["company"] = company
+    def _add_company(self, company_dto: CompanyDto):
+        self.melted_df['company_id'] = company_dto.id
 
-    def add_type_to_payments(self, payment_types: list[PaymentTypeDto], company: CompanyDto) -> None:
+    def add_type_to_payments(self, payment_types: list[PaymentTypeDto], company_dto: CompanyDto) -> None:
         payments_type = pd.DataFrame([item.model_dump() for item in payment_types])
-        st.write(payments_type)
-        # self._add_company(company)
+        # st.write(payments_type)
+        self._add_company(company_dto)
         self.melted_df = self.melted_df.merge(payments_type, on=['name', 'direction'], how='left')
+
+    def _get_payments_to_db(self) -> list[PaymentCompanyDto]:
+        try:
+            payments_type_dto = [PaymentCompanyDto(**payment) for payment in self.melted_df.to_dict('records')]
+            return payments_type_dto
+        except ValidationError as e:
+            st.write(e.errors())
 
     @property
     def payments_to_db(self):
-        return self.melted_df.to_dict('records')
+        return self._get_payments_to_db()

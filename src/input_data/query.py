@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import select, insert
 from database import async_session
 from models import Company, Payment
-from schemas import CompanyDto
+from schemas import CompanyDto, PaymentCompanyDto
 
 
 class DatabaseManager:
@@ -16,9 +16,9 @@ class DatabaseManager:
             return companies
 
     @staticmethod
-    async def insert_payments(payments: list[dict]) -> None:
+    async def insert_payments(payments: list[PaymentCompanyDto]) -> None:
         async with async_session() as session:
-            stmt = insert(Payment).values(payments)
+            stmt = insert(Payment).values([payment.model_dump() for payment in payments])
             await session.execute(stmt)
             await session.commit()
 

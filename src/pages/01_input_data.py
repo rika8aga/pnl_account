@@ -15,9 +15,9 @@ async def main():
     payment_types = payment_type_selector.payments_type_dto
 
     if st.button('Записать'):
-        payment_processor.add_type_to_payments(payment_types=payment_types, company=company)
-        st.dataframe(payment_processor.payments_to_db)
-        # await DatabaseManager.insert_payments(payment_processor.payments_to_db)
+        payment_processor.add_type_to_payments(payment_types=payment_types, company_dto=company)
+        st.write(payment_processor.payments_to_db)
+        await DatabaseManager.insert_payments(payment_processor.payments_to_db)
 
 
 if __name__ == '__main__':

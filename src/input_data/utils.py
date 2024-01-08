@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+from pydantic import ValidationError
 from models import PaymentType
 from .query import DatabaseManager
 from schemas import CompanyDto, PaymentDto, PaymentDirectionDto, PaymentTypeDto
@@ -52,6 +53,7 @@ class PaymentTypeSelector:
         'Товар': 'product',
         'Услуга': 'service',
         'Общие': 'general',
+        'Не учитывать': 'drop'
     }
 
     def _get_unique_payments(self) -> pd.DataFrame:
@@ -91,15 +93,20 @@ class PaymentTypeSelector:
         )
 
     def _drop_none_payment_type(self):
-        self.payments_type.dropna(subset=['payment_type'], inplace=True)
+        self.payments_type.query('payment_type != "drop"', inplace=True)
 
     def _get_payment_type_dto(self) -> list[PaymentTypeDto]:
         self._data_editor()
         self._set_directions()
         self._set_type()
         self._drop_none_payment_type()
-        payments_type_dto = [PaymentTypeDto(**payment_type) for payment_type in self.payments_type.to_dict('records')]
-        return payments_type_dto
+        try:
+            payments_type_dto = [PaymentTypeDto(**payment_type) for payment_type in self.payments_type.to_dict('records')]
+            return payments_type_dto
+        except ValidationError as e:
+            if e.errors()[0]['loc'] == ('payment_type',):
+                st.warning('Заполните типы платежей для всех платежей')
+                st.stop()
 
     @property
     def payments_type_dto(self) -> list[PaymentTypeDto]:
