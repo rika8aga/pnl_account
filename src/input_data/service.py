@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from models import PaymentDirection
 from datetime import datetime, date
-from schemas import PaymentType, PaymentTypeDto, PaymentDto, PaymentDirectionDto, CompanyDto, PaymentCompanyDto
+from schemas import PaymentTypeDto, PaymentDirectionDto, CompanyDto, PaymentCompanyDto
 import streamlit as st
 
 
@@ -43,12 +43,6 @@ class PaymentProcessor:
         'cost': ['expense', '`Вид`.str.contains("Себестоимость")']
     }
 
-    DIRECTION_MAPPING = {
-        'income': 'Доходы',
-        'expense': 'Расходы',
-        'cost': 'Себестоимость'
-    }
-
     MONTH_MAPPING = {
         'янв.': 1,
         'февр.': 2,
@@ -85,7 +79,7 @@ class PaymentProcessor:
             match date_string:
                 case str(value):
                     month_name, year = value.split(' ')
-                    month_number = PaymentProcessor.MONTH_MAPPING.get(month_name)
+                    month_number = self.MONTH_MAPPING.get(month_name)
                     return datetime.strptime(f'{month_number}.{year}', '%m.%y')
                 case pd.Timestamp():
                     return date_string
@@ -138,6 +132,7 @@ class PaymentProcessor:
 
     def _get_payments_to_db(self) -> list[PaymentCompanyDto]:
         try:
+            st.write(self.melted_df.to_dict('records'))
             payments_type_dto = [PaymentCompanyDto(**payment) for payment in self.melted_df.to_dict('records')]
             return payments_type_dto
         except ValidationError as e:

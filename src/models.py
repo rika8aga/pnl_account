@@ -1,10 +1,7 @@
 from sqlalchemy import ForeignKey, Numeric, Date
 from sqlalchemy.orm import mapped_column, Mapped, relationship, DeclarativeBase
 from enum import Enum
-
-
-class Base(DeclarativeBase):
-    pass
+from database import Base
 
 
 class Company(Base):
@@ -12,6 +9,8 @@ class Company(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     payments: Mapped[list['Payment']] = relationship(back_populates='company')
+
+    repr_columns: list[str] = ['name']
 
 
 class PaymentType(Enum):
@@ -36,3 +35,5 @@ class Payment(Base):
     company: Mapped['Company'] = relationship(back_populates='payments')
     period: Mapped[Date] = mapped_column(Date)
     value: Mapped[Numeric] = mapped_column(Numeric(precision=13, scale=3, asdecimal=True))
+
+    repr_columns: list[str] = ['name', 'period', 'value']

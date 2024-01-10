@@ -1,13 +1,19 @@
 from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
+from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+from config import settings
 
-engine = create_async_engine(DATABASE_URL, echo=True, poolclass=NullPool)
+
+engine = create_async_engine(url=settings.db_url, echo=True, poolclass=NullPool)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
 # async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 #     async with async_session_maker() as session:
 #         yield session
+class Base(DeclarativeBase):
+    repr_columns: list[str] = []
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({", ".join([f"{col}={getattr(self, col)!r}" for col in self.repr_columns])})'

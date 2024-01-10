@@ -1,7 +1,8 @@
 import decimal
+import json
 from datetime import datetime
 import pandas as pd
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator, Field, validator
 from models import PaymentDirection, PaymentType
 
 
@@ -40,6 +41,7 @@ class PaymentCompanyDto(PaymentTypeDto, PaymentDirectionDto):
 
 class PaymentDto(PaymentCompanyDto):
     id: int
+    company_name: str
 
 
 class CompanyAddDto(BaseModel):
@@ -50,5 +52,11 @@ class CompanyDto(CompanyAddDto):
     id: int
 
 
-class CompanyPaymentDto(BaseModel):
-    payment: list['PaymentDto']
+class CompanyPaymentDto(CompanyDto):
+    payments: list['PaymentDto']
+
+
+class CompanyDirectionSumDto(BaseModel):
+    company: str
+    direction: PaymentDirection
+    value: decimal.Decimal

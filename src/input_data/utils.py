@@ -1,9 +1,8 @@
 import pandas as pd
 import streamlit as st
 from pydantic import ValidationError
-from models import PaymentType
-from .query import DatabaseManager
-from schemas import CompanyDto, PaymentDto, PaymentDirectionDto, PaymentTypeDto
+from constants import Mapping
+from schemas import PaymentDirectionDto, PaymentTypeDto
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
@@ -20,47 +19,16 @@ class FileUploader:
         return file
 
 
-class CompanySelector:
-    @staticmethod
-    async def select_company() -> CompanyDto:
-        companies = await DatabaseManager.get_company_names()
-        with st.container(border=True):
-            st.subheader('Наименование компании')
-            company: CompanyDto = st.selectbox(
-                label='company_name',
-                label_visibility='collapsed',
-                options=companies,
-                format_func=lambda x: x.name
-            )
-        return company
-
-
 class PaymentTypeSelector:
     def __init__(self, payments: list[PaymentDirectionDto]):
         self._payments_dto = payments
         self.payments_type = None
 
-    DIRECTION_MAPPING = {
-        'income': 'Доходы',
-        'expense': 'Расходы',
-        'cost': 'Себестоимость',
-        'Доходы': 'income',
-        'Расходы': 'expense',
-        'Себестоимость': 'cost'
-    }
-
-    TYPE_MAPPING = {
-        'Товар': 'product',
-        'Услуга': 'service',
-        'Общие': 'general',
-        'Не учитывать': 'drop'
-    }
-
     def _get_unique_payments(self) -> pd.DataFrame:
         unique_payments_type = pd.DataFrame([item.model_dump() for item in list(set(self._payments_dto))])
         unique_payments_type['payment_type'] = None
         unique_payments_type['direction'] = unique_payments_type['direction'].apply(
-            lambda x: PaymentTypeSelector.DIRECTION_MAPPING.get(x.value)
+            lambda x: Mapping.DIRECTION_MAPPING.get(x.value)
         )
         unique_payments_type = unique_payments_type.drop(columns=['value', 'period'])
         return unique_payments_type
@@ -84,12 +52,12 @@ class PaymentTypeSelector:
 
     def _set_directions(self):
         self.payments_type['direction'] = self.payments_type['direction'].apply(
-            lambda x: PaymentTypeSelector.DIRECTION_MAPPING.get(x)
+            lambda x: Mapping.DIRECTION_MAPPING.get(x)
         )
 
     def _set_type(self):
         self.payments_type['payment_type'] = self.payments_type['payment_type'].apply(
-            lambda x: PaymentTypeSelector.TYPE_MAPPING.get(x)
+            lambda x: Mapping.TYPE_MAPPING.get(x)
         )
 
     def _drop_none_payment_type(self):

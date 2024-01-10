@@ -1,8 +1,9 @@
 import asyncio
 import streamlit as st
 from input_data.service import PaymentProcessor
-from input_data.utils import FileUploader, CompanySelector, PaymentTypeSelector
-from input_data.query import DatabaseManager
+from input_data.utils import FileUploader, PaymentTypeSelector
+from query import DatabaseManager
+from utils import CompanySelector
 
 
 async def main():
