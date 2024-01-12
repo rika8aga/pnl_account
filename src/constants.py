@@ -5,7 +5,9 @@ class Mapping:
         'cost': 'Себестоимость',
         'Доходы': 'income',
         'Расходы': 'expense',
-        'Себестоимость': 'cost'
+        'Себестоимость': 'cost',
+        'gross_profit': 'Валовая прибыль',
+        'profit': 'Прибыль',
     }
 
     TYPE_MAPPING = {

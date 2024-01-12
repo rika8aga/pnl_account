@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import select, insert, func
 from database import async_session
 from models import Company, Payment
@@ -21,43 +23,25 @@ class DatabaseManager:
             await session.execute(stmt)
             await session.commit()
 
-
     @staticmethod
-    async def get_payment_for_net_income_2():
-        async with async_session() as session:
-            stmt = (
-                select(
-                    Payment.id,
-                    Payment.name,
-                    Payment.direction,
-                    Payment.value,
-                    Payment.period,
-                    Payment.payment_type,
-                    Company.id.label('company_id'),
-                    Company.name.label('company_name'),
-                )
-                .join(Company, Payment.company_id == Company.id)
-            )
-            result = await session.execute(stmt)
-            print(f'result: {result.all()}')
-            result_dto = [PaymentDto.model_validate(row, from_attributes=True) for row in result.all()]
-            print(f'result_dto: {result_dto}')
-            return result_dto
-
-    @staticmethod
-    async def get_table_by_company_direction(company_id_list: list[int]) -> list[CompanyDirectionSumDto]:
+    async def get_table_by_company_direction(company_id_list: list[int], period: tuple[date, date]) -> list[CompanyDirectionSumDto]:
         async with async_session() as session:
             stmt = (
                 select(
                     func.json_build_object(
                         'company', Company.name,
                         'direction', Payment.direction,
+                        'period', Payment.period,
                         'value', func.sum(Payment.value)
                     ).label('company')
                 )
                 .select_from(Company)
-                .where(Company.id.in_(company_id_list))
-                .group_by(Payment.direction, Company.name)
+                .where(
+                    Company.id.in_(company_id_list),
+                    Payment.period >= period[0],
+                    Payment.period <= period[1],
+                )
+                .group_by(Payment.direction, Company.name, Payment.period)
                 .join(Payment, Payment.company_id == Company.id)
             )
             result = await session.execute(stmt)
@@ -65,3 +49,15 @@ class DatabaseManager:
             print(f'Companies: {result_orm}')
             result_dto = [CompanyDirectionSumDto(**row) for row in result_orm]
             return result_dto
+
+    @staticmethod
+    async def get_payments_period() -> tuple[date, date]:
+        async with async_session() as session:
+            stmt = select(
+                func.min(Payment.period).label('min_period'),
+                func.max(Payment.period).label('max_period'),
+            )
+            result = await session.execute(stmt)
+            result_orm = result.first()
+            print(result_orm.min_period, result_orm.max_period)
+            return result_orm.min_period, result_orm.max_period

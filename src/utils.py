@@ -1,3 +1,5 @@
+from datetime import date
+
 from query import DatabaseManager
 from schemas import CompanyDto
 import streamlit as st
@@ -30,3 +32,20 @@ class CompanySelector:
                 format_func=lambda x: x.name
             )
         return company
+
+
+class PeriodSelector:
+    @staticmethod
+    async def select_period() -> tuple[date, date]:
+        default_value = await DatabaseManager.get_payments_period()
+        with st.container(border=True):
+            st.subheader('Период')
+            period: tuple[date, date] = st.date_input(
+                value=default_value,
+                label='period',
+                label_visibility='collapsed',
+            )
+            match period:
+                case (start,):
+                    period = (start, date.today())
+        return period
